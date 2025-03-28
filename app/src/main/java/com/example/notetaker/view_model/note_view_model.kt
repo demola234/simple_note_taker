@@ -2,20 +2,35 @@ package com.example.notetaker.view_model
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.ui.graphics.Color
+ import androidx.compose.ui.graphics.Color
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.notetaker.data.NoteData
-import com.example.notetaker.model.NoteModel
+import com.example.notetaker.repository.NoteRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class NoteViewModel : ViewModel() {
+@HiltViewModel
+class NoteViewModel @Inject constructor(
+    private val repository: NoteRepository
+) : ViewModel() {
     val titleState = mutableStateOf("")
     val contentState = mutableStateOf("")
     val errorState = mutableStateOf<String?>(null)
 
-    private val _notesList = mutableStateListOf<NoteData>()
-    val notesList: List<NoteData> = _notesList
+    private val _notes = MutableStateFlow<List<NoteData>>(emptyList())
+    val notes: StateFlow<List<NoteData>> = _notes.asStateFlow()
+
+    private val noteIds = mutableMapOf<NoteData, Int>()
+    val selectedNoteForColorEdit = mutableStateOf<NoteData?>(null)
+    val isColorDialogVisible = mutableStateOf(false)
 
     private val noteColors = listOf(
         Color(0xFF424242),
@@ -27,15 +42,16 @@ class NoteViewModel : ViewModel() {
     )
 
     init {
-        loadNotes()
+        viewModelScope.launch {
+            repository.allNotes.collectLatest { notesList ->
+                _notes.value = notesList
+            }
+        }
     }
 
-    private fun loadNotes() {
-        _notesList.clear()
-        _notesList.addAll(NoteModel.notes)
-    }
 
     fun addNote() {
+        try {
         when {
             titleState.value.isBlank() -> {
                 errorState.value = "Title cannot be blank"
@@ -54,24 +70,38 @@ class NoteViewModel : ViewModel() {
                     date = System.currentTimeMillis()
                 )
 
-                NoteModel.notes.add(
-                    note
-                )
-                _notesList.add(note)
+                viewModelScope.launch {
+                    val id = repository.insertNote(note)
+                    noteIds[note] = id.toInt()
+                }
 
                 clearInputs()
             }
         }
+        } catch (e: Exception) {
+            errorState.value = "An error occurred while adding the note."
+        }
     }
 
     fun deleteNote(note: NoteData) {
-        NoteModel.notes.remove(note)
-        _notesList.remove(note)
+       viewModelScope.launch(Dispatchers.IO) {
+           try {
+               val noteId = noteIds[note] ?: return@launch
+               repository.deleteNote(note)
+            } catch (e: Exception) {
+                errorState.value = "An error occurred while deleting the note."
+            }
+        }
     }
 
     fun clearAllNotes() {
-        NoteModel.notes.clear()
-        _notesList.clear()
+       viewModelScope.launch(Dispatchers.IO) {
+           try {
+               repository.deleteAllNotes()
+           } catch (e: Exception) {
+               errorState.value = "An error occurred while clearing all notes."
+           }
+       }
     }
 
     fun clearInputs() {
@@ -79,37 +109,45 @@ class NoteViewModel : ViewModel() {
         contentState.value = ""
     }
 
+    fun dismissError() {
+        errorState.value = null
+    }
+
+    fun showColorDialog(note: NoteData) {
+        selectedNoteForColorEdit.value = note
+        isColorDialogVisible.value = true
+    }
+
+    fun hideColorDialog() {
+        isColorDialogVisible.value = false
+    }
+
+
     fun updateNote(note: NoteData) {
-        val index = NoteModel.notes.indexOf(note)
-        NoteModel.notes[index] = note.copy(
-            title = titleState.value,
-            content = contentState.value,
-            color = note.color,
-            date = System.currentTimeMillis()
-        )
-        _notesList[index] = note.copy(
-            title = titleState.value,
-            content = contentState.value,
-            color = note.color,
-            date = System.currentTimeMillis()
-        )
+       viewModelScope.launch(Dispatchers.IO) {
+           try {
+               repository.updateNote(note)
+           } catch (e: Exception) {
+               errorState.value = "An error occurred while updating the note."
+           }
+       }
         clearInputs()
     }
 
-    fun updateNoteColor(note: NoteData, color: Color) {
-        val index = NoteModel.notes.indexOf(note)
-        NoteModel.notes[index] = note.copy(
-            title = note.title,
-            content = note.content,
-            color = color,
-            date = System.currentTimeMillis()
-        )
-        _notesList[index] = note.copy(
-            title = note.title,
-            content = note.content,
-            color = color,
-            date = System.currentTimeMillis()
-        )
+    fun updateNoteColor(newColor: Color) {
+       viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val note = selectedNoteForColorEdit.value ?: return@launch
+
+                val updatedNote = note.copy(color = newColor)
+                repository.updateNote(updatedNote)
+                hideColorDialog()
+            } catch (e: Exception) {
+                errorState.value = "An error occurred while updating the note color."
+            }
+        }
         clearInputs()
     }
+
+
 }

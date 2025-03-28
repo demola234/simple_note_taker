@@ -19,5 +19,15 @@ dependencyResolutionManagement {
     }
 }
 
+@Suppress("UnstableApiUsage")
+dependencyResolutionManagement {
+    versionCatalogs {
+        create("libs") {
+            plugin("hilt-android", "com.google.dagger.hilt.android").version("2.51.1")
+        }
+    }
+}
+
+
 rootProject.name = "NoteTaker"
 include(":app")
