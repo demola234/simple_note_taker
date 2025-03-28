@@ -1,6 +1,5 @@
 package com.example.notetaker.view_model
 
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
  import androidx.compose.ui.graphics.Color
 
