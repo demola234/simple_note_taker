@@ -60,7 +60,6 @@ fun NoteScreen(
     viewModel: NoteViewModel = hiltViewModel()
 ) {
     val primary = Color(0xFF6200EE)
-    val secondary = Color(0xFF03DAC5)
     val notes = viewModel.notes.collectAsState()
 
     var showEditDialog = remember { mutableStateOf(false) }
