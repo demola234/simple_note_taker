@@ -1,18 +1,14 @@
 package com.example.notetaker.view_model
 
 import androidx.compose.runtime.mutableStateOf
- import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color
 
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
 import com.example.notetaker.data.NoteData
 import com.example.notetaker.repository.NoteRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,8 +26,12 @@ class NoteViewModel @Inject constructor(
     private val noteIds = mutableMapOf<NoteData, Int>()
     val selectedNoteForColorEdit = mutableStateOf<NoteData?>(null)
     val isColorDialogVisible = mutableStateOf(false)
+    val selectedNoteForEdit = mutableStateOf<NoteData?>(null)
+    val isEditDialogVisible = mutableStateOf(false)
 
-    private val noteColors = listOf(
+
+
+     val noteColors = listOf(
         Color(0xFF424242),
         Color(0xFF3949AB),
         Color(0xFF1E88E5),
@@ -47,7 +47,6 @@ class NoteViewModel @Inject constructor(
             }
         }
     }
-
 
     fun addNote() {
         try {
@@ -78,17 +77,16 @@ class NoteViewModel @Inject constructor(
             }
         }
         } catch (e: Exception) {
-            errorState.value = "An error occurred while adding the note."
+            errorState.value = "An error occurred while adding the note. ${e.message}"
         }
     }
 
     fun deleteNote(note: NoteData) {
        viewModelScope.launch(Dispatchers.IO) {
            try {
-               val noteId = noteIds[note] ?: return@launch
                repository.deleteNote(note)
             } catch (e: Exception) {
-                errorState.value = "An error occurred while deleting the note."
+                errorState.value = "An error occurred while deleting the note. ${e.message}"
             }
         }
     }
@@ -98,7 +96,7 @@ class NoteViewModel @Inject constructor(
            try {
                repository.deleteAllNotes()
            } catch (e: Exception) {
-               errorState.value = "An error occurred while clearing all notes."
+               errorState.value = "An error occurred while clearing all notes. ${e.message}"
            }
        }
     }
@@ -117,8 +115,17 @@ class NoteViewModel @Inject constructor(
         isColorDialogVisible.value = true
     }
 
+    fun hideEditDialog() {
+        isEditDialogVisible.value = false
+    }
+
     fun hideColorDialog() {
         isColorDialogVisible.value = false
+    }
+
+    fun showEditDialog(note: NoteData) {
+        selectedNoteForEdit.value = note
+        isEditDialogVisible.value = true
     }
 
 
@@ -127,7 +134,7 @@ class NoteViewModel @Inject constructor(
            try {
                repository.updateNote(note)
            } catch (e: Exception) {
-               errorState.value = "An error occurred while updating the note."
+               errorState.value = "An error occurred while updating the note. ${e.message}"
            }
        }
         clearInputs()
@@ -142,11 +149,9 @@ class NoteViewModel @Inject constructor(
                 repository.updateNote(updatedNote)
                 hideColorDialog()
             } catch (e: Exception) {
-                errorState.value = "An error occurred while updating the note color."
+                errorState.value = "An error occurred while updating the note color. ${e.message}"
             }
         }
         clearInputs()
     }
-
-
 }

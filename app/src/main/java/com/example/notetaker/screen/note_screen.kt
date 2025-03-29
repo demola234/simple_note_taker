@@ -19,14 +19,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -37,7 +37,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,7 +45,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.notetaker.components.EditNoteDialog
 import com.example.notetaker.components.NoteInput
 import com.example.notetaker.data.NoteData
 import com.example.notetaker.view_model.NoteViewModel
@@ -64,7 +63,21 @@ fun NoteScreen(
     val secondary = Color(0xFF03DAC5)
     val notes = viewModel.notes.collectAsState()
 
+    var showEditDialog = remember { mutableStateOf(false) }
+    var noteToEdit = remember { mutableStateOf<NoteData?>(null) }
 
+    // Show edit dialog if state is true
+    if (showEditDialog.value && noteToEdit.value != null) {
+        EditNoteDialog(
+            note = noteToEdit.value!!,
+            colors = viewModel.noteColors,
+            onDismiss = { showEditDialog.value = false },
+            onSave = { updatedNote ->
+                viewModel.updateNote(updatedNote)
+                showEditDialog.value = false
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -125,7 +138,7 @@ fun NoteScreen(
                         }
                     }
                 }
-
+                Spacer(modifier = Modifier.height(25.dp))
                 NoteInput(
                     text = viewModel.titleState.value,
                     onTextChange = { newValue ->
@@ -135,7 +148,7 @@ fun NoteScreen(
                     label = "Title",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(10.dp),
+                        .padding(horizontal = 20.dp),
                     onImeAction = {
 
                     },
@@ -152,7 +165,7 @@ fun NoteScreen(
                     label = "Content ",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(10.dp),
+                        .padding(horizontal = 20.dp),
                     onImeAction = {
 
                     },
@@ -187,11 +200,18 @@ fun NoteScreen(
                                 animationSpec = tween(durationMillis = 300)
                             ) + fadeOut()
                         ) {
-                            NoteItem(notes.value[index], modifier = Modifier
-                                .clickable {
-                                    isNoteVisible.value = false
-                                    viewModel.deleteNote(notes.value[index])
-                                })
+                            NoteItem(notes.value[index],
+                                onDelete = {
+                                isNoteVisible.value = false
+                                viewModel.deleteNote(notes.value[index])
+                            }, onEdit =
+                                 {
+                                     noteToEdit.value = notes.value[index]
+                                     showEditDialog.value = true
+
+
+                                },
+                                )
                         }
                     }
                 }
@@ -201,14 +221,14 @@ fun NoteScreen(
 }
 
 @Composable
-fun NoteItem(note: NoteData, modifier: Modifier = Modifier) {
+fun NoteItem(note: NoteData, onDelete: () -> Unit, onEdit: () -> Unit) {
     Surface(
         color = note.color,
         modifier = Modifier
             .fillMaxWidth()
             .padding(3.dp)
             .clip(shape = RoundedCornerShape(10.dp))
-            .then(modifier)  // Apply the passed modifier (which has the clickable)
+
     ) {
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -232,15 +252,31 @@ fun NoteItem(note: NoteData, modifier: Modifier = Modifier) {
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
             }
+    Row {
+        Icon(
+            imageVector = Icons.Default.Edit,
+            contentDescription = "Edit",
+            tint = Color.White,
+            modifier = Modifier
+                .size(30.dp)
+                .padding(4.dp)
+                .clickable{
+                    onEdit()
+                }
+        )
 
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete",
-                tint = Color.White,
-                modifier = Modifier
-                    .size(24.dp)
-                    .padding(4.dp)
-            )
+        Icon(
+            imageVector = Icons.Default.Delete,
+            contentDescription = "Delete",
+            tint = Color.White,
+            modifier = Modifier
+                .size(30.dp)
+                .padding(4.dp)
+                .clickable {
+                    onDelete()
+                }
+        )
+    }
         }
     }
 }
