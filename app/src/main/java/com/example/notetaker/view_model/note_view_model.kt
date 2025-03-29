@@ -29,8 +29,6 @@ class NoteViewModel @Inject constructor(
     val selectedNoteForEdit = mutableStateOf<NoteData?>(null)
     val isEditDialogVisible = mutableStateOf(false)
 
-
-
      val noteColors = listOf(
         Color(0xFF424242),
         Color(0xFF3949AB),
@@ -41,7 +39,7 @@ class NoteViewModel @Inject constructor(
     )
 
     init {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.allNotes.collectLatest { notesList ->
                 _notes.value = notesList
             }
